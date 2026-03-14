@@ -1,49 +1,47 @@
 openapi: 3.1.0
 info:
-  title: Museum API - Ultimate Kitchen Sink
+  title: Redocly Museum API - The Final Boss
   description: |
-    ### The Documentation Stress Test
-    This API is a **deliberate** torture test for UI renderers. It contains:
-    * **Deeply nested** markdown descriptions.
-    * **Complex** `$ref` resolutions.
-    * **Custom extensions** (`x-ui-label`).
-    * **Mixed** parameter types.
+    ### Architecture Stress Test
+    This contract is designed to test **Deep Nesting**, **Markdown Rendering**, and **Manual $ref Resolution**.
+    - **Bold**, *Italic*, and `Inline Code` testing.
+    - [Links to external docs](https://redocly.com).
   version: 1.2.1
 servers:
   - url: "https://redocly.com/_mock/docs/openapi/museum-api"
-    description: "The *Production* mock server for high-latency testing."
+    description: "*Sandbox* environment for testing `sadbox-schema-viewer`."
 
 paths:
   /museum-hours:
     get:
       summary: Get museum hours
       description: |
-        Retrieves a list of opening and closing times. 
-        > **Note:** Hours may vary during *Lunar Eclipses*.
+        Returns a calendar of operation. 
+        > Note: **Holiday hours** are injected via the `status` enum.
       operationId: getMuseumHours
       tags: [Operations]
       parameters:
         - name: startDate
           in: query
           required: false
-          description: "Filter results starting from this `ISO-8601` date."
+          description: "Start date in `YYYY-MM-DD`. Defaults to **current server time**."
           schema:
             type: string
             format: date
-            x-ui-label: [{ text: "Defaults to Today", severity: "info" }]
+            x-ui-label: [{ text: "Query Filter", severity: "info" }]
         - name: X-Museum-Tenant
           in: header
           required: true
-          description: "The `UUID` of the specific museum branch. *Required for routing.*"
+          description: "The **Tenant ID**. Required for `RBAC` validation."
           schema:
             type: string
-            x-ui-label: [{ text: "Internal", severity: "error" }]
+            x-ui-label: [{ text: "Internal Only", severity: "error" }]
       responses:
         "200":
-          description: "Successful operation. Returns an `array` of hours."
+          description: "**Success**: Operation schedule retrieved."
           headers:
             X-Cache-Status:
-              description: "Indicates if the response was served from the **CDN edge**."
+              description: "Indicates if the result was fetched from the `Redis` cache."
               schema:
                 type: string
                 enum: [HIT, MISS, BYPASS]
@@ -52,19 +50,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MuseumHours"
-  
+
   /tickets:
     post:
       summary: Buy museum tickets
       description: |
-        Endpoint to process ticket purchases. 
-        1. Validates **email**
-        2. Checks **availability**
-        3. Generates **QR Code**
+        Processes a new ticket order. 
+        - Validates **Payment**
+        - Reserves **Seat** (if applicable)
       operationId: buyMuseumTickets
       tags: [Tickets]
       requestBody:
-        description: "Payload containing user contact info and selected ticket types."
+        description: "The order payload. Requires a valid `purchaseDetails` block."
         required: true
         content:
           application/json:
@@ -72,8 +69,8 @@ paths:
               $ref: "#/components/schemas/BuyMuseumTickets"
       responses:
         "201":
-          description: "Purchase confirmed. An email has been dispatched to the `purchaser`."
-          x-ui-label: [{ text: "sends email", severity: "info" }]
+          description: "Order created successfully."
+          x-ui-label: [{ text: "Triggers Email", severity: "info" }]
           content:
             application/json:
               schema:
@@ -81,112 +78,87 @@ paths:
 
 components:
   schemas:
-    BuyMuseumTickets:
-      type: object
-      description: "Root object for initiating a ticket purchase transaction."
-      required: [purchaseDetails]
-      properties:
-        purchaseDetails:
-          type: object
-          description: "Encapsulated details regarding the **buyer** and the **items**."
-          required: [email, ticketInfo]
-          properties:
-            email: 
-              type: string
-              format: email
-              description: "Valid email for receiving the `digital_pdf` ticket."
-            ticketInfo:
-              $ref: "#/components/schemas/Ticket"
-        metadata:
-          type: object
-          description: "Optional `key-value` pairs for tracking marketing attribution."
-          additionalProperties:
-            type: string
-            description: "A dynamic string value for the metadata key."
-          x-ui-label: [{ text: "Hidden Fields", severity: "warning" }]
-
-    Ticket:
-      type: object
-      description: "The base model representing a single entry permit."
-      required: [ticketType, ticketDate]
-      properties:
-        ticketId: 
-          type: string
-          format: uuid
-          readOnly: true
-          description: "Server-generated `UUID`. Do not provide during POST."
-        ticketDate: 
-          type: string
-          format: date
-          description: "The specific calendar day the ticket is **valid** for."
-        ticketType:
-          type: string
-          description: "The category of access granted."
-          enum: [event, general]
-        entryRequirements:
-          description: "Discriminator-style logic for different ticket variants."
-          oneOf:
-            - type: object
-              title: General Entry
-              description: "Standard museum access requirements."
-              properties:
-                membershipId: 
-                  type: string
-                  description: "Optional loyalty program ID to earn `XP`."
-            - type: object
-              title: Event Entry
-              description: "Specialized access for timed workshops or galas."
-              required: [eventId]
-              properties:
-                eventId: 
-                  type: string
-                  format: uuid
-                  description: "The unique ID of the event being attended."
-                seatNumber: 
-                  type: string
-                  description: "Assigned seating (e.g., `Row A, Seat 12`)."
-
     MuseumHours:
       type: array
-      description: "A collection of daily operation schedules."
+      description: "A chronological list of daily schedules."
       items:
         $ref: "#/components/schemas/MuseumDailyHours"
 
     MuseumDailyHours:
       type: object
-      description: "Daily breakdown of time slots."
+      description: "Operating details for a **single** calendar day."
       required: [date, timeOpen, timeClose]
       properties:
         date: 
           type: string
-          format: date
-          description: "The target date for these hours."
+          description: "The specific date for this schedule entry."
         timeOpen: 
           type: string
-          description: "Opening time in `HH:mm` format."
-          example: "09:00"
+          description: "Format: `HH:mm`. Example: `08:30`."
         timeClose: 
           type: string
-          description: "Closing time in `HH:mm` format."
-          example: "18:00"
+          description: "Format: `HH:mm`. Example: `17:00`."
         status:
           type: string
-          description: "The operational state of the facility."
-          x-ui-label: [{ text: "Dynamic", severity: "info" }]
-          enum: [open, closed, holiday, private_event]
+          description: "The **facility status**."
+          x-ui-label: [{ text: "Live Data", severity: "info" }]
+          enum: [open, closed, sold_out]
+
+    BuyMuseumTickets:
+      type: object
+      description: "Root object for the **checkout** process."
+      required: [purchaseDetails]
+      properties:
+        purchaseDetails:
+          type: object
+          description: "Encapsulated user and item data."
+          required: [email, ticketInfo]
+          properties:
+            email: 
+              type: string
+              description: "The user's primary `contact` email."
+            ticketInfo:
+              $ref: "#/components/schemas/Ticket"
+        metadata:
+          type: object
+          description: "Additional dynamic properties."
+          additionalProperties:
+            type: string
+            description: "Custom key-value pairs for **tracking**."
+          x-ui-label: [{ text: "Dev Only", severity: "warning" }]
+
+    Ticket:
+      type: object
+      description: "Base schema for all ticket types."
+      required: [ticketType, ticketDate]
+      properties:
+        ticketId: 
+          type: string
+          readOnly: true
+          description: "The **Immutable** internal ID."
+        ticketType:
+          type: string
+          description: "Determines the `entryRequirements` logic."
+          enum: [event, general]
+        entryRequirements:
+          description: "Conditional logic based on `ticketType`."
+          oneOf:
+            - type: object
+              title: General Admission
+              description: "Standard museum access."
+              properties:
+                membershipLevel: { type: string, description: "e.g. `Gold`, `Silver`" }
+            - type: object
+              title: Special Event
+              description: "Timed entry for limited-capacity events."
+              required: [eventId]
+              properties:
+                eventId: { type: string, description: "The event `UUID`." }
 
     MuseumTicketsConfirmation:
       type: object
-      description: "The final receipt object returned to the client."
+      description: "Response sent after successful **POST**."
       required: [confirmationCode, message]
       properties:
-        confirmationCode: 
-          type: string
-          description: "A short-code for **gate-side** verification."
-        message: 
-          type: string
-          description: "Human-readable success message."
-        issuedAt: 
-          type: string
-          format: date-time
-          description: "Timestamp of transaction completion."
+        confirmationCode: { type: string, description: "Alpha-numeric code." }
+        message: { type: string, description: "A friendly **Thank You** message." }
