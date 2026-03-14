@@ -1,0 +1,53 @@
+openapi: 3.1.0
+info:
+  title: Array Stress Test
+  version: 1.0.0
+  description: |
+    Tests for **Array-in-Array** and **Object-in-Array** patterns.
+paths:
+  /inventory:
+    get:
+      summary: List inventory items
+      description: "Returns a complex **nested array** structure."
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                type: array
+                description: "The primary list of storage zones."
+                items:
+                  type: object
+                  description: "A specific **Zone** in the museum."
+                  required: [zoneName, shelfContents]
+                  properties:
+                    zoneName: 
+                      type: string
+                      description: "Name of the wing (e.g., *East Wing*)."
+                    shelfContents:
+                      type: array
+                      description: "A nested list of items on the shelf."
+                      items:
+                        $ref: "#/components/schemas/Artifact"
+
+components:
+  schemas:
+    Artifact:
+      type: object
+      description: "A physical object stored in the museum."
+      required: [id, name]
+      properties:
+        id: 
+          type: string
+          description: "Internal `UID` for the artifact."
+        name: 
+          type: string
+          description: "**Common name** of the piece."
+        restorationHistory:
+          type: array
+          description: "List of dates when the item was *cleaned* or *repaired*."
+          items:
+            type: string
+            format: date
+            description: "A specific **restoration event** date."
