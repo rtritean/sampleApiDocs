@@ -1,52 +1,153 @@
 openapi: 3.1.0
 info:
-  title: Redocly Museum API - Lifecycle Edition
+  title: Redocly Museum API - The Master Stress-Test
   description: |
-    ### Feature Flag & Lifecycle Testing
-    This spec tests how the UI handles **Internal** operations and **Deprecated** (Obsolete) fields.
-    - `/inventory` is now marked as `x-internal`.
-    - `MuseumDailyHours.status` is now `deprecated`.
+    ### The Ultimate UI Torture Test
+    This contract validates:
+    1. **Security**: OAuth2 Scopes and Basic Auth.
+    2. **Webhooks**: Event-driven documentation.
+    3. **Lifecycle**: `x-internal` and `deprecated` status.
+    4. **Nesting**: Deep `array[object]` recursion.
+    - [Redocly Documentation](https://redocly.com)
   version: 1.2.1
 servers:
   - url: "https://redocly.com/_mock/docs/openapi/museum-api"
+    description: "Production-grade mock server."
+
+security:
+  - MuseumPlaceholderAuth: []
+  - OAuth2: [write:events, read:events]
 
 paths:
   /inventory:
     get:
       summary: List inventory items
-      x-internal: true # Extension-based internal marking
+      x-internal: true
       x-ui-label: [{ text: "Internal Only", severity: "error" }]
       description: |
-        **Internal Operation**: This endpoint should only be visible to staff. 
-        Verify if your sidebar or header displays an "Internal" badge.
+        Returns a complex **nested array** structure. 
+        - Tests `array[object]` rendering.
+        - Requires `read:events` scope.
       operationId: listInventory
       tags: [Operations]
+      security:
+        - OAuth2: [read:events]
       responses:
         "200":
-          description: "OK"
+          description: "Success: Array of storage zones retrieved."
           content:
             application/json:
               schema:
                 type: array
+                description: "Primary list of museum storage zones."
                 items:
                   $ref: "#/components/schemas/Zone"
 
   /museum-hours:
     get:
       summary: Get museum hours
+      description: "Returns a calendar of operation. Includes `deprecated` fields."
       operationId: getMuseumHours
+      tags: [Operations]
+      parameters:
+        - name: startDate
+          in: query
+          description: "Start date in `YYYY-MM-DD`."
+          schema:
+            type: string
+            format: date
+            x-ui-label: [{ text: "Query Filter", severity: "info" }]
+        - name: X-Museum-Tenant
+          in: header
+          required: true
+          description: "The **Tenant ID** for routing."
+          schema:
+            type: string
+            x-ui-label: [{ text: "Internal", severity: "error" }]
       responses:
         "200":
-          description: "OK"
+          description: "Schedule retrieved."
+          headers:
+            X-Cache-Status:
+              description: "CDN Cache Status."
+              schema:
+                type: string
+                enum: [HIT, MISS, BYPASS]
+          x-ui-label: [{ text: "Cached", severity: "info" }]
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MuseumHours"
 
+  /tickets:
+    post:
+      summary: Buy museum tickets
+      description: "Processes a new ticket order. Uses deep `$ref` nesting."
+      operationId: buyMuseumTickets
+      tags: [Tickets]
+      requestBody:
+        description: "The order payload."
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuyMuseumTickets"
+      responses:
+        "201":
+          description: "Order created."
+          x-ui-label: [{ text: "Triggers Email", severity: "info" }]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MuseumTicketsConfirmation"
+
+webhooks:
+  artifactRestored:
+    post:
+      summary: Artifact restoration completed
+      description: |
+        Triggered when an artifact is successfully restored. 
+        Includes the **Artifact** schema in the payload.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Artifact"
+      responses:
+        "200":
+          description: "Webhook acknowledged."
+
 components:
   schemas:
+    Zone:
+      type: object
+      description: "A physical wing within the museum."
+      required: [zoneName, shelfContents]
+      properties:
+        zoneName: { type: string, description: "Official wing name." }
+        shelfContents:
+          type: array
+          description: "Nested list of artifacts."
+          items:
+            $ref: "#/components/schemas/Artifact"
+
+    Artifact:
+      type: object
+      description: "A historical object."
+      required: [id, name]
+      properties:
+        id: { type: string, description: "Artifact ID." }
+        name: { type: string, description: "**Common name**." }
+        restorationHistory:
+          type: array
+          description: "Maintenance timeline."
+          items:
+            type: string
+            format: date
+
     MuseumHours:
       type: array
+      description: "Chronological daily schedules."
       items:
         $ref: "#/components/schemas/MuseumDailyHours"
 
@@ -54,31 +155,72 @@ components:
       type: object
       required: [date, timeOpen, timeClose]
       properties:
-        date: { type: string, description: "The calendar date." }
-        timeOpen: { type: string, description: "Opening time." }
-        timeClose: { type: string, description: "Closing time." }
+        date: { type: string, description: "The date." }
+        timeOpen: { type: string, example: "09:00" }
+        timeClose: { type: string, example: "18:00" }
         status:
           type: string
-          deprecated: true # NATIVE OPENAPI ELEMENT (Obsolete)
+          deprecated: true
           x-ui-label: [{ text: "Obsolete", severity: "warning" }]
-          description: |
-            **DEPRECATED**: This field is being replaced by the `occupancy` object. 
-            Do not use in new integrations.
+          description: "**DEPRECATED**: Use `occupancy` instead."
           enum: [open, closed]
 
-    Zone:
+    BuyMuseumTickets:
       type: object
-      required: [zoneName, shelfContents]
+      required: [purchaseDetails]
       properties:
-        zoneName: { type: string, description: "The area name." }
-        shelfContents:
-          type: array
-          items:
-            $ref: "#/components/schemas/Artifact"
+        purchaseDetails:
+          type: object
+          required: [email, ticketInfo]
+          properties:
+            email: { type: string, description: "Primary contact email." }
+            ticketInfo:
+              $ref: "#/components/schemas/Ticket"
+        metadata:
+          type: object
+          additionalProperties: { type: string }
+          x-ui-label: [{ text: "Dev Only", severity: "warning" }]
 
-    Artifact:
+    Ticket:
       type: object
-      required: [id, name]
+      required: [ticketType, ticketDate]
       properties:
-        id: { type: string, description: "Artifact ID." }
-        name: { type: string, description: "Artifact Name." }
+        ticketId: { type: string, readOnly: true, description: "Immutable ID." }
+        ticketType:
+          type: string
+          enum: [event, general]
+        entryRequirements:
+          oneOf:
+            - type: object
+              title: General Admission
+              properties:
+                membershipLevel: { type: string }
+            - type: object
+              title: Special Event
+              required: [eventId]
+              properties:
+                eventId: { type: string, description: "Event UUID." }
+
+    MuseumTicketsConfirmation:
+      type: object
+      required: [confirmationCode, message]
+      properties:
+        confirmationCode: { type: string }
+        message: { type: string }
+        issuedAt: { type: string, format: date-time }
+
+  securitySchemes:
+    MuseumPlaceholderAuth:
+      type: http
+      scheme: basic
+      description: "Basic auth for staff members."
+    OAuth2:
+      type: oauth2
+      description: "Standard OAuth2 flow for third-party developers."
+      flows:
+        authorizationCode:
+          authorizationUrl: https://redocly.com/oauth/authorize
+          tokenUrl: https://redocly.com/oauth/token
+          scopes:
+            read:events: "Read access to museum event data."
+            write:events: "Permission to create or modify events."
