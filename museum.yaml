@@ -1,164 +1,84 @@
 openapi: 3.1.0
 info:
-  title: Redocly Museum API - The Final Boss
+  title: Redocly Museum API - Lifecycle Edition
   description: |
-    ### Architecture Stress Test
-    This contract is designed to test **Deep Nesting**, **Markdown Rendering**, and **Manual $ref Resolution**.
-    - **Bold**, *Italic*, and `Inline Code` testing.
-    - [Links to external docs](https://redocly.com).
+    ### Feature Flag & Lifecycle Testing
+    This spec tests how the UI handles **Internal** operations and **Deprecated** (Obsolete) fields.
+    - `/inventory` is now marked as `x-internal`.
+    - `MuseumDailyHours.status` is now `deprecated`.
   version: 1.2.1
 servers:
   - url: "https://redocly.com/_mock/docs/openapi/museum-api"
-    description: "*Sandbox* environment for testing `sadbox-schema-viewer`."
 
 paths:
+  /inventory:
+    get:
+      summary: List inventory items
+      x-internal: true # Extension-based internal marking
+      x-ui-label: [{ text: "Internal Only", severity: "error" }]
+      description: |
+        **Internal Operation**: This endpoint should only be visible to staff. 
+        Verify if your sidebar or header displays an "Internal" badge.
+      operationId: listInventory
+      tags: [Operations]
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Zone"
+
   /museum-hours:
     get:
       summary: Get museum hours
-      description: |
-        Returns a calendar of operation. 
-        > Note: **Holiday hours** are injected via the `status` enum.
       operationId: getMuseumHours
-      tags: [Operations]
-      parameters:
-        - name: startDate
-          in: query
-          required: false
-          description: "Start date in `YYYY-MM-DD`. Defaults to **current server time**."
-          schema:
-            type: string
-            format: date
-            x-ui-label: [{ text: "Query Filter", severity: "info" }]
-        - name: X-Museum-Tenant
-          in: header
-          required: true
-          description: "The **Tenant ID**. Required for `RBAC` validation."
-          schema:
-            type: string
-            x-ui-label: [{ text: "Internal Only", severity: "error" }]
       responses:
         "200":
-          description: "**Success**: Operation schedule retrieved."
-          headers:
-            X-Cache-Status:
-              description: "Indicates if the result was fetched from the `Redis` cache."
-              schema:
-                type: string
-                enum: [HIT, MISS, BYPASS]
-          x-ui-label: [{ text: "Cached", severity: "info" }]
+          description: "OK"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MuseumHours"
 
-  /tickets:
-    post:
-      summary: Buy museum tickets
-      description: |
-        Processes a new ticket order. 
-        - Validates **Payment**
-        - Reserves **Seat** (if applicable)
-      operationId: buyMuseumTickets
-      tags: [Tickets]
-      requestBody:
-        description: "The order payload. Requires a valid `purchaseDetails` block."
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/BuyMuseumTickets"
-      responses:
-        "201":
-          description: "Order created successfully."
-          x-ui-label: [{ text: "Triggers Email", severity: "info" }]
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MuseumTicketsConfirmation"
-
 components:
   schemas:
     MuseumHours:
       type: array
-      description: "A chronological list of daily schedules."
       items:
         $ref: "#/components/schemas/MuseumDailyHours"
 
     MuseumDailyHours:
       type: object
-      description: "Operating details for a **single** calendar day."
       required: [date, timeOpen, timeClose]
       properties:
-        date: 
-          type: string
-          description: "The specific date for this schedule entry."
-        timeOpen: 
-          type: string
-          description: "Format: `HH:mm`. Example: `08:30`."
-        timeClose: 
-          type: string
-          description: "Format: `HH:mm`. Example: `17:00`."
+        date: { type: string, description: "The calendar date." }
+        timeOpen: { type: string, description: "Opening time." }
+        timeClose: { type: string, description: "Closing time." }
         status:
           type: string
-          description: "The **facility status**."
-          x-ui-label: [{ text: "Live Data", severity: "info" }]
-          enum: [open, closed, sold_out]
+          deprecated: true # NATIVE OPENAPI ELEMENT (Obsolete)
+          x-ui-label: [{ text: "Obsolete", severity: "warning" }]
+          description: |
+            **DEPRECATED**: This field is being replaced by the `occupancy` object. 
+            Do not use in new integrations.
+          enum: [open, closed]
 
-    BuyMuseumTickets:
+    Zone:
       type: object
-      description: "Root object for the **checkout** process."
-      required: [purchaseDetails]
+      required: [zoneName, shelfContents]
       properties:
-        purchaseDetails:
-          type: object
-          description: "Encapsulated user and item data."
-          required: [email, ticketInfo]
-          properties:
-            email: 
-              type: string
-              description: "The user's primary `contact` email."
-            ticketInfo:
-              $ref: "#/components/schemas/Ticket"
-        metadata:
-          type: object
-          description: "Additional dynamic properties."
-          additionalProperties:
-            type: string
-            description: "Custom key-value pairs for **tracking**."
-          x-ui-label: [{ text: "Dev Only", severity: "warning" }]
+        zoneName: { type: string, description: "The area name." }
+        shelfContents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Artifact"
 
-    Ticket:
+    Artifact:
       type: object
-      description: "Base schema for all ticket types."
-      required: [ticketType, ticketDate]
+      required: [id, name]
       properties:
-        ticketId: 
-          type: string
-          readOnly: true
-          description: "The **Immutable** internal ID."
-        ticketType:
-          type: string
-          description: "Determines the `entryRequirements` logic."
-          enum: [event, general]
-        entryRequirements:
-          description: "Conditional logic based on `ticketType`."
-          oneOf:
-            - type: object
-              title: General Admission
-              description: "Standard museum access."
-              properties:
-                membershipLevel: { type: string, description: "e.g. `Gold`, `Silver`" }
-            - type: object
-              title: Special Event
-              description: "Timed entry for limited-capacity events."
-              required: [eventId]
-              properties:
-                eventId: { type: string, description: "The event `UUID`." }
-
-    MuseumTicketsConfirmation:
-      type: object
-      description: "Response sent after successful **POST**."
-      required: [confirmationCode, message]
-      properties:
-        confirmationCode: { type: string, description: "Alpha-numeric code." }
-        message: { type: string, description: "A friendly **Thank You** message." }
+        id: { type: string, description: "Artifact ID." }
+        name: { type: string, description: "Artifact Name." }
