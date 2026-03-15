@@ -20,7 +20,7 @@ paths:
                 items:
                   type: object
                   description: "A specific **Zone** in the museum."
-                  required: [zoneName, shelfContents, zoneMap, patternMap]
+                  required: [shelfContents, zoneMap, patternMap]
                   properties:
                     zoneName:
                       type:
