@@ -35,9 +35,15 @@ paths:
                     zoneMap:
                       type: object
                       description: "Dynamic map of shelf labels to item counts."
+                      minProperties: 1
+                      maxProperties: 10
                       additionalProperties:
                         type: integer
                         description: "Count of items on shelf."
+                      const: null
+                      propertyNames:
+                        type: string
+                        pattern: "^[a-zA-Z0-9_-]+$"
                     patternMap:
                       type: object
                       description: "Pattern map for special shelf keys."
@@ -45,6 +51,9 @@ paths:
                         "^special-.*":
                           type: string
                           description: "Special shelf label."
+                      examples:
+                        - { special-1: "VIP Shelf" }
+                        - { special-2: "Archive Shelf" }
 components:
   schemas:
     Artifact:
