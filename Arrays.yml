@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
-  title: Array Stress Test
+  title: Array & Map Stress Test
   version: 1.0.0
   description: |
-    Tests for **Array-in-Array** and **Object-in-Array** patterns.
+    Tests for **Array-in-Array**, **Object-in-Array**, and **Map/Pattern Map** patterns.
 paths:
   /inventory:
     get:
@@ -20,7 +20,7 @@ paths:
                 items:
                   type: object
                   description: "A specific **Zone** in the museum."
-                  required: [zoneName, shelfContents]
+                  required: [zoneName, shelfContents, zoneMap, patternMap]
                   properties:
                     zoneName: 
                       type: string
@@ -30,7 +30,19 @@ paths:
                       description: "A nested list of items on the shelf."
                       items:
                         $ref: "#/components/schemas/Artifact"
-
+                    zoneMap:
+                      type: object
+                      description: "Dynamic map of shelf labels to item counts."
+                      additionalProperties:
+                        type: integer
+                        description: "Count of items on shelf."
+                    patternMap:
+                      type: object
+                      description: "Pattern map for special shelf keys."
+                      patternProperties:
+                        "^special-.*":
+                          type: string
+                          description: "Special shelf label."
 components:
   schemas:
     Artifact:
