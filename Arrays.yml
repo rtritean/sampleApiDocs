@@ -40,7 +40,6 @@ paths:
                       additionalProperties:
                         type: integer
                         description: "Count of items on shelf."
-                      const: null
                       propertyNames:
                         type: string
                         pattern: "^[a-zA-Z0-9_-]+$"
