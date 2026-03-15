@@ -5,7 +5,7 @@ info:
   description: |
     Tests for **Array-in-Array**, **Object-in-Array**, and **Map/Pattern Map** patterns.
 paths:
-  /inventory:
+  /inventory/evidently-a-long-path-name/should-wrap-accordingly/and-not-cause/layout-issues/on-any-screen-size/so-make-sure-this-works-as-intended/or-else:
     get:
       summary: List inventory items
       deprecated: true
