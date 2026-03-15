@@ -5,6 +5,55 @@ info:
   description: |
     Tests for **Array-in-Array**, **Object-in-Array**, and **Map/Pattern Map** patterns.
 paths:
+  /inventory/complex-demo:
+    post:
+      summary: Create a complex inventory record
+      description: |
+        Creates a new inventory record with complex request/response structure.
+      parameters:
+        - name: filter
+          in: query
+          description: Filter type (internal)
+          schema:
+            type: string
+          x-internal: true
+        - name: client-version
+          in: query
+          description: Client version (UI internal)
+          schema:
+            type: string
+          x-ui-internal: true
+      requestBody:
+        description: Inventory creation payload
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryCreateRequest'
+      responses:
+        "201":
+          description: Created
+          headers:
+            X-Trace-Id:
+              description: Trace identifier (internal)
+              schema:
+                type: string
+              x-internal: true
+            X-Rate-Limit:
+              description: Rate limit info (UI internal)
+              schema:
+                type: integer
+              x-ui-internal: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryCreateResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /inventory/evidently-a-long-path-name/should-wrap-accordingly/and-not-cause/layout-issues/on-any-screen-size/so-make-sure-this-works-as-intended/or-else:
     get:
       summary: List inventory items
@@ -27,7 +76,6 @@ paths:
                     zoneName:
                       type:
                         - string
-                        - null
                       description: "Name of the wing (e.g., *East Wing*). May be null."
                     shelfContents:
                       type: array
@@ -57,6 +105,76 @@ paths:
                         - { special-2: "Archive Shelf" }
 components:
   schemas:
+    InventoryCreateRequest:
+      type: object
+      description: Inventory creation input
+      required: [name, items]
+      properties:
+        name:
+          type: string
+          description: Inventory name
+        items:
+          type: array
+          description: List of items
+          items:
+            type: object
+            properties:
+              sku:
+                type: string
+                description: SKU code
+                x-internal: true
+              label:
+                type: string
+                description: Item label
+              quantity:
+                type: integer
+                description: Quantity
+                x-ui-internal: true
+              meta:
+                type: object
+                description: Metadata
+                properties:
+                  createdBy:
+                    type: string
+                    description: Creator name
+                  notes:
+                    type: string
+                    description: Notes (internal)
+                    x-internal: true
+    InventoryCreateResponse:
+      type: object
+      description: Inventory creation output
+      required: [id, status]
+      properties:
+        id:
+          type: string
+          description: Inventory record ID
+        status:
+          type: string
+          description: Creation status
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        internalToken:
+          type: string
+          description: Internal token (internal)
+          x-internal: true
+        uiFlag:
+          type: boolean
+          description: UI flag (UI internal)
+          x-ui-internal: true
+    ErrorResponse:
+      type: object
+      description: Error response
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
     Artifact:
       type: object
       description: "A physical object stored in the museum."
