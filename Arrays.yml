@@ -9,6 +9,7 @@ paths:
     get:
       summary: List inventory items
       deprecated: true
+      x-internal: true
       description: "Returns a complex **nested array** structure."
       responses:
         "200":
@@ -64,6 +65,7 @@ components:
         id: 
           type: string
           description: "Internal `UID` for the artifact."
+          x-internal: true
         name: 
           type: string
           description: "**Common name** of the piece."
