@@ -22,9 +22,11 @@ paths:
                   description: "A specific **Zone** in the museum."
                   required: [zoneName, shelfContents, zoneMap, patternMap]
                   properties:
-                    zoneName: 
-                      type: string
-                      description: "Name of the wing (e.g., *East Wing*)."
+                    zoneName:
+                      type:
+                        - string
+                        - null
+                      description: "Name of the wing (e.g., *East Wing*). May be null."
                     shelfContents:
                       type: array
                       description: "A nested list of items on the shelf."
