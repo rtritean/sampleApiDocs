@@ -8,6 +8,7 @@ paths:
   /inventory:
     get:
       summary: List inventory items
+      deprecated: true
       description: "Returns a complex **nested array** structure."
       responses:
         "200":
@@ -58,7 +59,7 @@ components:
     Artifact:
       type: object
       description: "A physical object stored in the museum."
-      required: [id, name]
+      required: [id]
       properties:
         id: 
           type: string
@@ -66,6 +67,7 @@ components:
         name: 
           type: string
           description: "**Common name** of the piece."
+          deprecated: true
         restorationHistory:
           type: array
           description: "List of dates when the item was *cleaned* or *repaired*."
