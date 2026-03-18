@@ -1,10 +1,9 @@
 openapi: 3.1.0
 info:
   title: Complex Inheritance & Intersection Test
-  version: 1.2.0
+  version: 1.3.0
   description: |
-    A stress test for `allOf` merging logic. 
-    Tests: Nested object merging, Enum intersection, and Array constraint reinforcement.
+    A stress test for `allOf` merging logic with a `oneOf` discriminator.
 
 paths:
   /products/books:
@@ -17,16 +16,21 @@ paths:
               oneOf:
                 - $ref: '#/components/schemas/PhysicalBook'
                 - $ref: '#/components/schemas/DigitalBook'
+              # This tells the UI/Validator which schema is which
+              discriminator:
+                propertyName: bookType
+                mapping:
+                  physical: '#/components/schemas/PhysicalBook'
+                  digital: '#/components/schemas/DigitalBook'
       responses:
         "201":
           description: Created
 
 components:
   schemas:
-    # --- BASE LAYERS ---
     BaseProduct:
       type: object
-      required: [id, sku]
+      required: [id, sku, bookType] # bookType is now required for all
       properties:
         id:
           type: string
@@ -34,6 +38,9 @@ components:
         sku:
           type: string
           pattern: "^[A-Z]{3}-[0-9]{4}$"
+        bookType:
+          type: string
+          description: "Discriminator field to distinguish between physical and digital."
         status:
           type: string
           enum: [DRAFT, PUBLISHED, ARCHIVED, DELETED]
@@ -53,20 +60,17 @@ components:
           items:
             type: string
 
-    # --- REFINEMENT LAYER (Intersection) ---
-    # This schema constrains the BaseProduct 'status' and 'tags'
     ActiveProductConstraint:
       type: object
       properties:
         status:
-          enum: [PUBLISHED] # Intersects with BaseProduct enum (Result: ONLY PUBLISHED)
+          enum: [PUBLISHED]
         tags:
-          maxItems: 5 # Adds to AuditMeta minItems (Result: 1 to 5 items)
+          maxItems: 5
           uniqueItems: true
 
-    # --- THE COMPLEX MERGE (Physical Book) ---
     PhysicalBook:
-      description: "Combines 4 schemas into one flattened object"
+      title: Physical Book
       allOf:
         - $ref: '#/components/schemas/BaseProduct'
         - $ref: '#/components/schemas/AuditMeta'
@@ -74,6 +78,10 @@ components:
         - type: object
           required: [dimensions, weight]
           properties:
+            # Constraining the discriminator for this specific branch
+            bookType:
+              type: string
+              const: physical 
             dimensions:
               type: object
               required: [height, width]
@@ -92,14 +100,17 @@ components:
                     properties:
                       stockCount: { type: integer, minimum: 0 }
 
-    # --- THE COMPLEX MERGE (Digital Book) ---
     DigitalBook:
+      title: Digital Book
       allOf:
         - $ref: '#/components/schemas/BaseProduct'
         - $ref: '#/components/schemas/AuditMeta'
         - type: object
           required: [downloadUrl, fileSize]
           properties:
+            bookType:
+              type: string
+              const: digital
             downloadUrl: { type: string, format: uri }
             fileSize: { type: integer }
             formats:
