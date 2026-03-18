@@ -54,6 +54,10 @@ components:
           anyOf:
             - $ref: '#/components/schemas/AdminPermissions'
             - $ref: '#/components/schemas/EditorPermissions'
+        user:
+          allOf:
+            - $ref: '#/components/schemas/BaseUser'
+            - $ref: '#/components/schemas/SystemMeta'
 
     # --- DISCRIMINATED SCHEMAS ---
     ExplicitContainer:
