@@ -3,28 +3,12 @@ info:
   title: Array & Map Stress Test
   version: 1.0.0
   description: |
-    Tests for **Array-in-Array**, **Object-in-Array**, and **Map/Pattern Map** patterns.
+    Tests for **Array-in-Array**, **Object-in-Array**, and **Polymorphism** (oneOf, allOf, anyOf).
 paths:
   /inventory/complex-demo:
     post:
       summary: Create a complex inventory record
-      description: |
-        Creates a new inventory record with complex request/response structure.
-      parameters:
-        - name: filter
-          in: query
-          description: Filter type (internal)
-          schema:
-            type: string
-          x-internal: true
-        - name: client-version
-          in: query
-          description: Client version (UI internal)
-          schema:
-            type: string
-          x-ui-internal: true
       requestBody:
-        description: Inventory creation payload
         required: true
         content:
           application/json:
@@ -33,33 +17,13 @@ paths:
       responses:
         "201":
           description: Created
-          headers:
-            X-Trace-Id:
-              description: Trace identifier (internal)
-              schema:
-                type: string
-              x-internal: true
-            X-Rate-Limit:
-              description: Rate limit info (UI internal)
-              schema:
-                type: integer
-              x-ui-internal: true
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InventoryCreateResponse'
-        "400":
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /inventory/evidently-a-long-path-name/should-wrap-accordingly/and-not-cause/layout-issues/on-any-screen-size/so-make-sure-this-works-as-intended/or-else:
+                $ref: '#/components/schemas/ResponseWrapper'
+  /inventory/items:
     get:
       summary: List inventory items
-      deprecated: true
-      x-internal: true
-      description: "Returns a complex **nested array** structure."
       responses:
         "200":
           description: "OK"
@@ -67,131 +31,85 @@ paths:
             application/json:
               schema:
                 type: array
-                description: "The primary list of storage zones."
                 items:
-                  type: object
-                  description: "A specific **Zone** in the museum."
-                  required: [shelfContents, zoneMap, patternMap]
-                  properties:
-                    zoneName:
-                      type:
-                        - string
-                      description: "Name of the wing (e.g., *East Wing*). May be null."
-                    shelfContents:
-                      type: array
-                      description: "A nested list of items on the shelf."
-                      items:
-                        $ref: "#/components/schemas/Artifact"
-                    zoneMap:
-                      type: object
-                      description: "Dynamic map of shelf labels to item counts."
-                      minProperties: 1
-                      maxProperties: 10
-                      additionalProperties:
-                        type: integer
-                        description: "Count of items on shelf."
-                      propertyNames:
-                        type: string
-                        pattern: "^[a-zA-Z0-9_-]+$"
-                    patternMap:
-                      type: object
-                      description: "Pattern map for special shelf keys."
-                      patternProperties:
-                        "^special-.*":
-                          type: string
-                          description: "Special shelf label."
-                      examples:
-                        - { special-1: "VIP Shelf" }
-                        - { special-2: "Archive Shelf" }
+                  $ref: "#/components/schemas/Artifact"
+
 components:
   schemas:
-    InventoryCreateRequest:
+    # --- allOf Example ---
+    # Combines the base Artifact properties with specific Restoration data
+    Artifact:
+      allOf:
+        - $ref: '#/components/schemas/BaseObject'
+        - type: object
+          properties:
+            restorationHistory:
+              type: array
+              items:
+                type: string
+                format: date
+
+    BaseObject:
       type: object
-      description: Inventory creation input
-      required: [name, items]
+      required: [id]
       properties:
+        id:
+          type: string
         name:
           type: string
-          description: Inventory name
-        items:
-          type: array
-          description: List of items
-          items:
-            type: object
-            properties:
-              sku:
-                type: string
-                description: SKU code
-                x-internal: true
-              label:
-                type: string
-                description: Item label
-              quantity:
-                type: integer
-                description: Quantity
-                x-ui-internal: true
-              meta:
-                type: object
-                description: Metadata
-                properties:
-                  createdBy:
-                    type: string
-                    description: Creator name
-                  notes:
-                    type: string
-                    description: Notes (internal)
-                    x-internal: true
+
+    # --- oneOf Example ---
+    # The payload MUST be exactly one of these types (Physical or Digital)
+    InventoryItem:
+      oneOf:
+        - $ref: '#/components/schemas/PhysicalItem'
+        - $ref: '#/components/schemas/DigitalItem'
+
+    PhysicalItem:
+      type: object
+      required: [dimensions]
+      properties:
+        dimensions:
+          type: string
+
+    DigitalItem:
+      type: object
+      required: [fileSize]
+      properties:
+        fileSize:
+          type: integer
+
+    # --- anyOf Example ---
+    # The response can be a success, a warning, or both (combined)
+    ResponseWrapper:
+      anyOf:
+        - $ref: '#/components/schemas/InventoryCreateResponse'
+        - $ref: '#/components/schemas/SystemWarning'
+
     InventoryCreateResponse:
       type: object
-      description: Inventory creation output
       required: [id, status]
       properties:
         id:
           type: string
-          description: Inventory record ID
         status:
           type: string
-          description: Creation status
-        createdAt:
-          type: string
-          format: date-time
-          description: Creation timestamp
-        internalToken:
-          type: string
-          description: Internal token (internal)
-          x-internal: true
-        uiFlag:
-          type: boolean
-          description: UI flag (UI internal)
-          x-ui-internal: true
-    ErrorResponse:
+
+    SystemWarning:
       type: object
-      description: Error response
-      required: [code, message]
       properties:
-        code:
-          type: integer
-          description: Error code
+        warningCode:
+          type: string
         message:
           type: string
-          description: Error message
-    Artifact:
+
+    InventoryCreateRequest:
       type: object
-      description: "A physical object stored in the museum."
-      required: [id]
+      required: [name, items]
       properties:
-        id: 
+        name:
           type: string
-          description: "Internal `UID` for the artifact."
-          x-internal: true
-        name: 
-          type: string
-          description: "**Common name** of the piece."
-          deprecated: true
-        restorationHistory:
+        items:
           type: array
-          description: "List of dates when the item was *cleaned* or *repaired*."
           items:
-            type: string
-            format: date
-            description: "A specific **restoration event** date."
+            $ref: '#/components/schemas/InventoryItem'
