@@ -1,0 +1,108 @@
+openapi: 3.1.0
+info:
+  title: Polymorphism Stress Test
+  version: 1.0.0
+  description: Contract for testing oneOf, allOf, and anyOf with and without discriminators.
+
+paths:
+  /test/implicit:
+    post:
+      summary: No Discriminator (Validation by Structure)
+      description: |
+        The API must guess the type. 
+        - **oneOf**: Must match exactly one.
+        - **anyOf**: Can match one or both.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImplicitContainer'
+      responses:
+        "200":
+          description: OK
+  
+  /test/explicit:
+    post:
+      summary: With Discriminator (Validation by Label)
+      description: |
+        The `objectType` field explicitly tells the parser which schema to use.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExplicitContainer'
+      responses:
+        "200":
+          description: OK
+
+components:
+  schemas:
+    # --- NON-DISCRIMINATED SCHEMAS ---
+    ImplicitContainer:
+      type: object
+      properties:
+        # allOf: Must satisfy BOTH schemas
+        identity:
+          allOf:
+            - $ref: '#/components/schemas/BaseUser'
+            - $ref: '#/components/schemas/SystemMeta'
+        # oneOf: Must satisfy EXACTLY ONE
+        payload:
+          oneOf:
+            - $ref: '#/components/schemas/SimpleText'
+            - $ref: '#/components/schemas/SimpleNumeric'
+
+    # --- DISCRIMINATED SCHEMAS ---
+    ExplicitContainer:
+      type: object
+      required: [action]
+      properties:
+        action:
+          oneOf:
+            - $ref: '#/components/schemas/EmailAction'
+            - $ref: '#/components/schemas/SmsAction'
+          discriminator:
+            propertyName: actionType
+            mapping:
+              email: '#/components/schemas/EmailAction'
+              sms: '#/components/schemas/SmsAction'
+
+    # --- SHARED COMPONENTS ---
+    BaseUser:
+      type: object
+      required: [username]
+      properties:
+        username: { type: string }
+
+    SystemMeta:
+      type: object
+      properties:
+        lastLogin: { type: string, format: date-time }
+
+    SimpleText:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string }
+
+    SimpleNumeric:
+      type: object
+      required: [value]
+      properties:
+        value: { type: integer }
+
+    EmailAction:
+      type: object
+      required: [actionType, emailAddress]
+      properties:
+        actionType: { type: string }
+        emailAddress: { type: string, format: email }
+
+    SmsAction:
+      type: object
+      required: [actionType, phoneNumber]
+      properties:
+        actionType: { type: string }
+        phoneNumber: { type: string }
