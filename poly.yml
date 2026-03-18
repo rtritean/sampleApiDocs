@@ -1,17 +1,17 @@
 openapi: 3.1.0
 info:
   title: Polymorphism Stress Test
-  version: 1.0.0
-  description: Contract for testing oneOf, allOf, and anyOf with and without discriminators.
+  version: 1.1.0
+  description: |
+    Extended contract for testing **oneOf**, **allOf**, and **anyOf** with and without discriminators.
 
 paths:
   /test/implicit:
     post:
       summary: No Discriminator (Validation by Structure)
       description: |
-        The API must guess the type. 
-        - **oneOf**: Must match exactly one.
-        - **anyOf**: Can match one or both.
+        - **oneOf**: Must match exactly one (SimpleText OR SimpleNumeric).
+        - **anyOf**: Can match one or both (AdminPermissions, EditorPermissions, or both).
       requestBody:
         required: true
         content:
@@ -26,7 +26,8 @@ paths:
     post:
       summary: With Discriminator (Validation by Label)
       description: |
-        The `objectType` field explicitly tells the parser which schema to use.
+        - **allOf**: Combines BaseUser and SystemMeta into a single requirement.
+        - **oneOf**: Uses `actionType` to switch between Email and SMS.
       requestBody:
         required: true
         content:
@@ -43,22 +44,27 @@ components:
     ImplicitContainer:
       type: object
       properties:
-        # allOf: Must satisfy BOTH schemas
-        identity:
-          allOf:
-            - $ref: '#/components/schemas/BaseUser'
-            - $ref: '#/components/schemas/SystemMeta'
         # oneOf: Must satisfy EXACTLY ONE
         payload:
           oneOf:
             - $ref: '#/components/schemas/SimpleText'
             - $ref: '#/components/schemas/SimpleNumeric'
+        # anyOf: Must satisfy AT LEAST ONE (can be both)
+        userRoles:
+          anyOf:
+            - $ref: '#/components/schemas/AdminPermissions'
+            - $ref: '#/components/schemas/EditorPermissions'
 
     # --- DISCRIMINATED SCHEMAS ---
     ExplicitContainer:
       type: object
-      required: [action]
+      required: [user, action]
       properties:
+        # allOf: Must satisfy BOTH (Inheritance pattern)
+        user:
+          allOf:
+            - $ref: '#/components/schemas/BaseUser'
+            - $ref: '#/components/schemas/SystemMeta'
         action:
           oneOf:
             - $ref: '#/components/schemas/EmailAction'
@@ -78,6 +84,7 @@ components:
 
     SystemMeta:
       type: object
+      required: [lastLogin]
       properties:
         lastLogin: { type: string, format: date-time }
 
@@ -93,6 +100,20 @@ components:
       properties:
         value: { type: integer }
 
+    # anyOf Components
+    AdminPermissions:
+      type: object
+      required: [canDelete]
+      properties:
+        canDelete: { type: boolean }
+
+    EditorPermissions:
+      type: object
+      required: [canEdit]
+      properties:
+        canEdit: { type: boolean }
+
+    # oneOf Components
     EmailAction:
       type: object
       required: [actionType, emailAddress]
