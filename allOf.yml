@@ -1,0 +1,116 @@
+openapi: 3.1.0
+info:
+  title: Complex Inheritance & Intersection Test
+  version: 1.2.0
+  description: |
+    A stress test for `allOf` merging logic. 
+    Tests: Nested object merging, Enum intersection, and Array constraint reinforcement.
+
+paths:
+  /products/books:
+    post:
+      summary: Create a complex book record
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/PhysicalBook'
+                - $ref: '#/components/schemas/DigitalBook'
+      responses:
+        "201":
+          description: Created
+
+components:
+  schemas:
+    # --- BASE LAYERS ---
+    BaseProduct:
+      type: object
+      required: [id, sku]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+          pattern: "^[A-Z]{3}-[0-9]{4}$"
+        status:
+          type: string
+          enum: [DRAFT, PUBLISHED, ARCHIVED, DELETED]
+
+    AuditMeta:
+      type: object
+      required: [timestamps]
+      properties:
+        timestamps:
+          type: object
+          properties:
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+        tags:
+          type: array
+          minItems: 1
+          items:
+            type: string
+
+    # --- REFINEMENT LAYER (Intersection) ---
+    # This schema constrains the BaseProduct 'status' and 'tags'
+    ActiveProductConstraint:
+      type: object
+      properties:
+        status:
+          enum: [PUBLISHED] # Intersects with BaseProduct enum (Result: ONLY PUBLISHED)
+        tags:
+          maxItems: 5 # Adds to AuditMeta minItems (Result: 1 to 5 items)
+          uniqueItems: true
+
+    # --- THE COMPLEX MERGE (Physical Book) ---
+    PhysicalBook:
+      description: "Combines 4 schemas into one flattened object"
+      allOf:
+        - $ref: '#/components/schemas/BaseProduct'
+        - $ref: '#/components/schemas/AuditMeta'
+        - $ref: '#/components/schemas/ActiveProductConstraint'
+        - type: object
+          required: [dimensions, weight]
+          properties:
+            dimensions:
+              type: object
+              required: [height, width]
+              properties:
+                height: { type: number }
+                width: { type: number }
+                unit: { type: string, enum: [cm, in] }
+            weight:
+              type: number
+            distribution:
+              type: array
+              items:
+                allOf:
+                  - $ref: '#/components/schemas/WarehouseLocation'
+                  - type: object
+                    properties:
+                      stockCount: { type: integer, minimum: 0 }
+
+    # --- THE COMPLEX MERGE (Digital Book) ---
+    DigitalBook:
+      allOf:
+        - $ref: '#/components/schemas/BaseProduct'
+        - $ref: '#/components/schemas/AuditMeta'
+        - type: object
+          required: [downloadUrl, fileSize]
+          properties:
+            downloadUrl: { type: string, format: uri }
+            fileSize: { type: integer }
+            formats:
+              type: array
+              items:
+                type: string
+                enum: [pdf, epub, mobi]
+
+    WarehouseLocation:
+      type: object
+      required: [warehouseCode]
+      properties:
+        warehouseCode: { type: string }
+        region: { type: string }
